@@ -37,7 +37,6 @@
             <div class="buttons-container">
                 <button onclick="uploadImages()">Create</button>
                 <button class="clear-button" onclick="clearImages()">Clear</button>
-                <button onclick="selectFolder()">Select Folder</button>
             </div>
             <div id="messageContainer"></div>
         </div>
@@ -98,158 +97,147 @@
 
     </footer>
     <script>
-    document.getElementById("year").textContent = new Date().getFullYear();
-    document.addEventListener('paste', handlePaste);
+        document.getElementById("year").textContent = new Date().getFullYear();
+        document.addEventListener('paste', handlePaste);
 
-    const dropbox = document.getElementById('dropbox');
-    const fileInput = document.getElementById('fileInput');
-    const imagePreview = document.getElementById('imagePreview');
-    const messageContainer = document.getElementById('messageContainer');
+        const dropbox = document.getElementById('dropbox');
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const messageContainer = document.getElementById('messageContainer');
 
-    let filesArray = []; // Array to hold all uploaded files
-    let selectedFolderPath = localStorage.getItem('selectedFolderPath') || 'uploads/stamped/'; // Default folder path
+        let filesArray = []; // Array to hold all uploaded files
 
-    // Event listeners for dropbox and file input
-    dropbox.addEventListener('click', () => fileInput.click());
-    dropbox.addEventListener('dragover', (event) => {
-        event.preventDefault();
-        dropbox.style.backgroundColor = '#e0e0e0';
-    });
-    dropbox.addEventListener('dragleave', () => {
-        dropbox.style.backgroundColor = '';
-    });
-    dropbox.addEventListener('drop', (event) => {
-        event.preventDefault();
-        const newFiles = event.dataTransfer.files;
-        addFilesToArray(newFiles);
-        dropbox.style.backgroundColor = '';
-        showPreview();
-    });
-    fileInput.addEventListener('change', () => {
-        const newFiles = fileInput.files;
-        addFilesToArray(newFiles);
-        showPreview();
-    });
+        // Event listeners for dropbox and file input
+        dropbox.addEventListener('click', () => fileInput.click());
+        dropbox.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropbox.style.backgroundColor = '#e0e0e0';
+        });
+        dropbox.addEventListener('dragleave', () => {
+            dropbox.style.backgroundColor = '';
+        });
+        dropbox.addEventListener('drop', (event) => {
+            event.preventDefault();
+            const newFiles = event.dataTransfer.files;
+            addFilesToArray(newFiles);
+            dropbox.style.backgroundColor = '';
+            showPreview();
+        });
+        fileInput.addEventListener('change', () => {
+            const newFiles = fileInput.files;
+            addFilesToArray(newFiles);
+            showPreview();
+        });
 
-    function handlePaste(event) {
-        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-        for (let item of items) {
-            if (item.type.indexOf('image') !== -1) {
-                const blob = item.getAsFile();
-                if (blob) {
-                    filesArray.push(blob);
-                    showPreview();
+        function handlePaste(event) {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        filesArray.push(blob);
+                        showPreview();
+                    }
                 }
             }
         }
-    }
 
-    // Function to add files to the array
-    function addFilesToArray(newFiles) {
-        for (let i = 0; i < newFiles.length; i++) {
-            filesArray.push(newFiles[i]);
-        }
-    }
-
-    // Function to show image preview
-    function showPreview() {
-        imagePreview.innerHTML = '';
-        for (let i = 0; i < filesArray.length; i++) {
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(filesArray[i]);
-            imagePreview.appendChild(img);
-        }
-    }
-
-    // Function to clear images
-    function clearImages() {
-        filesArray = []; // Clear the files array
-        imagePreview.innerHTML = ''; // Clear the preview
-        fileInput.value = ''; // Clear the file input
-    }
-
-    // Function to select a folder
-    function selectFolder() {
-        const folderPath = prompt("Enter the folder path where you want to save the stamped images:",
-            selectedFolderPath);
-        if (folderPath) {
-            selectedFolderPath = folderPath;
-            localStorage.setItem('selectedFolderPath', folderPath); // Save the folder path to localStorage
-            showMessage('Folder selected successfully!', 'success');
-        }
-    }
-
-
-    // Function to upload images to the backend
-    async function uploadImages() {
-        if (filesArray.length === 0) {
-            showMessage('No images selected.', 'error');
-            return;
+        function addFilesToArray(newFiles) {
+            for (let i = 0; i < newFiles.length; i++) {
+                filesArray.push(newFiles[i]);
+            }
         }
 
-        if (!selectedFolderPath) {
-            showMessage('Please select an output folder first.', 'error');
-            return;
+        function showPreview() {
+            imagePreview.innerHTML = '';
+            for (let i = 0; i < filesArray.length; i++) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(filesArray[i]);
+                imagePreview.appendChild(img);
+            }
         }
 
-        const formData = new FormData();
-        for (let i = 0; i < filesArray.length; i++) {
-            formData.append('images[]', filesArray[i]);
+        function clearImages() {
+            filesArray = [];
+            imagePreview.innerHTML = '';
+            fileInput.value = '';
         }
-        formData.append('output_folder', selectedFolderPath);
 
-        try {
-            showMessage('Processing images...', 'info');
+        //  Updated upload function to handle base64 downloads
+        async function uploadImages() {
+            if (filesArray.length === 0) {
+                showMessage('No images selected.', 'error');
+                return;
+            }
 
-            const response = await fetch('<?php echo site_url('logo_stamp/upload_images'); ?>', {
-                method: 'POST',
-                body: formData
+            const formData = new FormData();
+            for (let i = 0; i < filesArray.length; i++) {
+                formData.append('images[]', filesArray[i]);
+            }
+
+            try {
+                showMessage('Processing images...', 'info');
+
+                const response = await fetch('<?php echo site_url('logo_stamp/upload_images'); ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Server error');
+                }
+
+                if (result.status === 'success') {
+                    showMessage(result.message, 'success');
+
+                    // Trigger individual downloads with "stamped/" in filename
+                    result.images.forEach(img => {
+                        const link = document.createElement('a');
+                        link.href = img.url;
+
+                        // This may create a "stamped" folder inside Downloads on most browsers
+                        link.download = `stamped/${img.name}`;
+
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+                } else {
+                    throw new Error(result.message || 'Unknown error occurred');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            messageContainer.appendChild(messageDiv);
+
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+
+        // Navigation functions (unchanged)
+        function toggleNav() {
+            const navMenu = document.getElementById('nav-menu');
+            navMenu.classList.toggle('active');
+        }
+
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        document.querySelector('.back-to-top').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
             });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.message || 'Server error');
-            }
-
-            if (result.status === 'success') {
-                showMessage(result.message || 'Images stamped successfully!', 'success');
-                console.log('Stamped images:', result.images);
-            } else {
-                throw new Error(result.message || 'Unknown error occurred');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showMessage(error.message || 'Failed to process images', 'error');
-        }
-    }
-
-    // Function to show messages
-    function showMessage(message, type) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type}`;
-        messageDiv.textContent = message;
-        messageContainer.appendChild(messageDiv);
-
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 3000);
-    }
-
-    // Additional functions for navigation and back-to-top button
-    function toggleNav() {
-        const navMenu = document.getElementById('nav-menu');
-        navMenu.classList.toggle('active');
-    }
-
-    document.getElementById('current-year').textContent = new Date().getFullYear();
-    document.querySelector('.back-to-top').addEventListener('click', (e) => {
-        e.preventDefault();
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
         });
-    });
     </script>
 
 
